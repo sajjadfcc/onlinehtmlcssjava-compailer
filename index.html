@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customizable Online Compiler</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    header {
+      background: #0078d7;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      background: #f4f4f4;
+      border-bottom: 2px solid #ccc;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      border-right: 1px solid #ccc;
+    }
+    .tab:last-child {
+      border-right: none;
+    }
+    .tab.active {
+      background: #fff;
+      font-weight: bold;
+    }
+    .editor-container {
+      display: none;
+      flex: 1;
+      flex-direction: row;
+    }
+    .editor-container.active {
+      display: flex;
+    }
+    .line-numbers {
+      background-color: #f4f4f4;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      width: 50px;
+      text-align: right;
+      font-family: monospace;
+      color: #888;
+    }
+    textarea {
+      flex: 1;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 16px;
+      resize: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+      white-space: pre;
+    }
+    .output-container, .code-container {
+      flex: 1;
+      padding: 10px;
+      background: white;
+      border-top: 2px solid #ccc;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    pre {
+      background: #f8f8f8;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .run-button {
+      text-align: right;
+      margin: 10px;
+    }
+    .run-button button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #0078d7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .run-button button:hover {
+      background: #005a9c;
+    }
+    .dark-mode {
+      background-color: #333;
+      color: white;
+    }
+    .light-mode {
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    .font-size-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+      background: #f4f4f4;
+    }
+    .font-size-container label {
+      margin-right: 10px;
+    }
+    .font-size-container input[type="range"] {
+      width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Customizable Online Compiler</h1>
+  </header>
+  <div class="tabs">
+    <div class="tab active" data-target="html-editor">index.html</div>
+    <div class="tab" data-target="css-editor">styles.css</div>
+    <div class="tab" data-target="js-editor">script.js</div>
+  </div>
+  <div class="editor-container active" id="html-editor">
+    <div class="line-numbers" id="html-line-numbers"></div>
+    <textarea id="html" placeholder="Write HTML code here (e.g., &lt;h1&gt;Hello World&lt;/h1&gt;)"></textarea>
+  </div>
+  <div class="editor-container" id="css-editor">
+    <div class="line-numbers" id="css-line-numbers"></div>
+    <textarea id="css" placeholder="Write CSS code here (e.g., h1 { color: blue; })"></textarea>
+  </div>
+  <div class="editor-container" id="js-editor">
+    <div class="line-numbers" id="js-line-numbers"></div>
+    <textarea id="js" placeholder="Write JavaScript code here (e.g., alert('Hello World!');)"></textarea>
+  </div>
+  <div class="run-button">
+    <button id="run">Run</button>
+    <button id="reset">Reset</button>
+    <button id="theme-toggle">Toggle Dark Mode</button>
+  </div>
+  <div class="output-container">
+    <h3>Output</h3>
+    <iframe id="output"></iframe>
+  </div>
+  
+  <!-- Font Size Adjustment Section -->
+  <div class="font-size-container">
+    <label for="font-size">Font Size: </label>
+    <input type="range" id="font-size" min="12" max="24" value="16">
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const editors = document.querySelectorAll('.editor-container');
+    const htmlEditor = document.getElementById('html');
+    const cssEditor = document.getElementById('css');
+    const jsEditor = document.getElementById('js');
+    const htmlLineNumbers = document.getElementById('html-line-numbers');
+    const cssLineNumbers = document.getElementById('css-line-numbers');
+    const jsLineNumbers = document.getElementById('js-line-numbers');
+    const outputFrame = document.getElementById('output');
+    const runButton = document.getElementById('run');
+    const resetButton = document.getElementById('reset');
+    const themeToggle = document.getElementById('theme-toggle');
+    const fontSizeSlider = document.getElementById('font-size');
+
+    // Tab switching functionality
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelector('.tab.active').classList.remove('active');
+        tab.classList.add('active');
+        document.querySelector('.editor-container.active').classList.remove('active');
+        document.getElementById(tab.dataset.target).classList.add('active');
+      });
+    });
+
+    // Update line numbers
+    function updateLineNumbers(editor, lineNumbersDiv) {
+      const lines = editor.value.split('\n').length;
+      lineNumbersDiv.innerHTML = '';
+      for (let i = 1; i <= lines; i++) {
+        const lineNumber = document.createElement('div');
+        lineNumber.textContent = i;
+        lineNumbersDiv.appendChild(lineNumber);
+      }
+    }
+
+    // Event listeners to update line numbers when typing
+    htmlEditor.addEventListener('input', () => updateLineNumbers(htmlEditor, htmlLineNumbers));
+    cssEditor.addEventListener('input', () => updateLineNumbers(cssEditor, cssLineNumbers));
+    jsEditor.addEventListener('input', () => updateLineNumbers(jsEditor, jsLineNumbers));
+
+    // Initial line number updates
+    updateLineNumbers(htmlEditor, htmlLineNumbers);
+    updateLineNumbers(cssEditor, cssLineNumbers);
+    updateLineNumbers(jsEditor, jsLineNumbers);
+
+    // Compile code and display in iframe
+    function compile() {
+      const htmlContent = htmlEditor.value;
+      const cssContent = `<style>${cssEditor.value}</style>`;
+      const jsContent = `<script>${jsEditor.value}<\/script>`;
+      
+      const fullContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Output</title>
+          ${cssContent}
+        </head>
+        <body>
+          ${htmlContent}
+          ${jsContent}
+        </body>
+        </html>
+      `;
+
+      const iframeDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(fullContent);
+      iframeDoc.close();
+    }
+
+    // Run button functionality
+    runButton.addEventListener('click', compile);
+
+    // Reset button functionality
+    resetButton.addEventListener('click', () => {
+      htmlEditor.value = '';
+      cssEditor.value = '';
+      jsEditor.value = '';
+      htmlLineNumbers.innerHTML = '';
+      cssLineNumbers.innerHTML = '';
+      jsLineNumbers.innerHTML = '';
+      outputFrame.contentDocument.open();
+      outputFrame.contentDocument.write('');
+      outputFrame.contentDocument.close();
+    });
+
+    // Dark mode toggle
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      document.body.classList.toggle('light-mode');
+    });
+
+    // Font size adjustments
+    fontSizeSlider.addEventListener('input', (e) => {
+      const fontSize = e.target.value + 'px';
+      htmlEditor.style.fontSize = fontSize;
+      cssEditor.style.fontSize = fontSize;
+      jsEditor.style.fontSize = fontSize;
+    });
+  </script>
+</body>
+</html>
